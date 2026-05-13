@@ -6,13 +6,19 @@ import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
 
 import settings
 from db.session import get_db
 from main import app
 
-test_engine = create_async_engine(settings.TEST_DATABASE_URL, future=True, echo=True)
+test_engine = create_async_engine(
+    settings.TEST_DATABASE_URL,
+    future=True,
+    echo=True,
+    poolclass=NullPool,
+)
 
 test_async_session = sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
 
@@ -27,11 +33,17 @@ async def run_migrations():
     os.system('alembic -c "tests/alembic.ini" upgrade head')
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def async_session_test():
-    engine = create_async_engine(settings.TEST_DATABASE_URL, future=True, echo=True)
+    engine = create_async_engine(
+        settings.TEST_DATABASE_URL,
+        future=True,
+        echo=True,
+        poolclass=NullPool,
+    )
     async_session = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     yield async_session
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -74,3 +86,17 @@ async def get_user_from_database(asyncpg_pool):
             )
 
     return get_user_from_database_by_uuid
+
+@pytest_asyncio.fixture
+async def create_user_in_database(asyncpg_pool):
+    async def create_user_in_database(user_id: str, name: str, surname: str, email: str, is_active: bool):
+        async with asyncpg_pool.acquire() as connection:
+            return await connection.execute(
+                """INSERT INTO users VALUES ($1, $2, $3, $4, $5);""",
+                user_id,
+                name,
+                surname,
+                email,
+                is_active,
+            )
+    return create_user_in_database
