@@ -1,13 +1,12 @@
 from envparse import Env
 
 env = Env()
+env.read_envfile(".env")
 
-REAL_DATABASE_URL = env.str(
-    "REAL_DATABASE_URL",
-    default="postgresql+asyncpg://postgres:postgres@localhost:5432/postgres",
-)
+REAL_DATABASE_URL = env.str("REAL_DATABASE_URL")
 
-TEST_DATABASE_URL = env.str(
-    "TEST_DATABASE_URL",
-    default="postgresql+asyncpg://postgres_test:postgres_test@localhost:5433/postgres_test",
-)
+TEST_DATABASE_URL = env.str("TEST_DATABASE_URL")
+
+
+def to_sync_database_url(database_url: str) -> str:
+    return database_url.replace("+asyncpg", "")

@@ -1,10 +1,12 @@
 import os
-from typing import Generator, Any
+from typing import Any
+from typing import Generator
 
 import asyncpg
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
@@ -13,23 +15,17 @@ import settings
 from db.session import get_db
 from main import app
 
-test_engine = create_async_engine(
-    settings.TEST_DATABASE_URL,
-    future=True,
-    echo=True,
-    poolclass=NullPool,
-)
-
-test_async_session = sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
-
 CLEAN_TABLES = [
     "users",
 ]
 
+
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def run_migrations():
     os.system('alembic -c "tests/alembic init migrations"')
-    os.system('alembic -c "tests/alembic.ini" revision --autogenerate -m "test running migrations"')
+    os.system(
+        'alembic -c "tests/alembic.ini" revision --autogenerate -m "test running migrations"'
+    )
     os.system('alembic -c "tests/alembic.ini" upgrade head')
 
 
@@ -53,11 +49,22 @@ async def clean_tables(async_session_test):
             for table_for_cleaning in CLEAN_TABLES:
                 await session.execute(text(f"TRUNCATE TABLE {table_for_cleaning}"))
 
+
 async def _get_test_db():
     try:
+        test_engine = create_async_engine(
+            settings.TEST_DATABASE_URL,
+            future=True,
+            echo=True,
+        )
+
+        test_async_session = sessionmaker(
+            test_engine, expire_on_commit=False, class_=AsyncSession
+        )
         yield test_async_session()
     finally:
         pass
+
 
 @pytest_asyncio.fixture(scope="function")
 async def client() -> Generator[TestClient, Any, None]:
@@ -87,9 +94,12 @@ async def get_user_from_database(asyncpg_pool):
 
     return get_user_from_database_by_uuid
 
+
 @pytest_asyncio.fixture
 async def create_user_in_database(asyncpg_pool):
-    async def create_user_in_database(user_id: str, name: str, surname: str, email: str, is_active: bool):
+    async def create_user_in_database(
+        user_id: str, name: str, surname: str, email: str, is_active: bool
+    ):
         async with asyncpg_pool.acquire() as connection:
             return await connection.execute(
                 """INSERT INTO users VALUES ($1, $2, $3, $4, $5);""",
@@ -99,4 +109,5 @@ async def create_user_in_database(asyncpg_pool):
                 email,
                 is_active,
             )
+
     return create_user_in_database

@@ -1,6 +1,9 @@
 import uuid
 
-from sqlalchemy import Column, UUID, String, Boolean
+from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import String
+from sqlalchemy import UUID
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
