@@ -12,6 +12,7 @@ async def test_update_user_updates_only_requested_user(
         "surname": "Sviridov",
         "email": "nikolai@example.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     other_user_data = {
         "user_id": uuid4(),
@@ -19,6 +20,7 @@ async def test_update_user_updates_only_requested_user(
         "surname": "Ivanov",
         "email": "ivan@example.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     update_data = {
         "name": "Petr",
@@ -53,6 +55,7 @@ async def test_update_user_check_one_is_updated(
         "surname": "Sviridov",
         "email": "nikolai@example.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_2 = {
         "user_id": uuid4(),
@@ -60,6 +63,7 @@ async def test_update_user_check_one_is_updated(
         "surname": "Smith",
         "email": "johns@example.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_3 = {
         "user_id": uuid4(),
@@ -67,6 +71,7 @@ async def test_update_user_check_one_is_updated(
         "surname": "Smith",
         "email": "janes@example.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_updated = {
         "name": "James",
@@ -114,6 +119,7 @@ async def test_update_user(client, create_user_in_database, get_user_from_databa
         "surname": "Sviridov",
         "email": "lol@kek.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_updated = {
         "name": "Ivan",
@@ -228,6 +234,7 @@ async def test_update_user_validation_error(
         "surname": "Sviridov",
         "email": "lol@kek.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     await create_user_in_database(**user_data)
     resp = client.patch(
@@ -288,6 +295,7 @@ async def test_update_user_duplication_email_error(
         "surname": "Sviridov",
         "email": "lol@kek.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_2 = {
         "user_id": uuid4(),
@@ -295,6 +303,7 @@ async def test_update_user_duplication_email_error(
         "surname": "Ivanov",
         "email": "ivan@kek.com",
         "is_active": True,
+        "hashed_password": "hashed_password",
     }
     user_data_updated = {"email": user_data_2["email"]}
     for user_data in [user_data_1, user_data_2]:

@@ -1,4 +1,3 @@
-import os
 from typing import Any
 from typing import Generator
 
@@ -12,6 +11,7 @@ from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
 
 import settings
+from db.models import Base
 from db.session import get_db
 from main import app
 
@@ -22,11 +22,15 @@ CLEAN_TABLES = [
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def run_migrations():
-    os.system('alembic -c "tests/alembic init migrations"')
-    os.system(
-        'alembic -c "tests/alembic.ini" revision --autogenerate -m "test running migrations"'
+    engine = create_async_engine(
+        settings.TEST_DATABASE_URL,
+        future=True,
+        poolclass=NullPool,
     )
-    os.system('alembic -c "tests/alembic.ini" upgrade head')
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
+    await engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -98,16 +102,22 @@ async def get_user_from_database(asyncpg_pool):
 @pytest_asyncio.fixture
 async def create_user_in_database(asyncpg_pool):
     async def create_user_in_database(
-        user_id: str, name: str, surname: str, email: str, is_active: bool
+        user_id: str,
+        name: str,
+        surname: str,
+        email: str,
+        is_active: bool,
+        hashed_password: str,
     ):
         async with asyncpg_pool.acquire() as connection:
             return await connection.execute(
-                """INSERT INTO users VALUES ($1, $2, $3, $4, $5);""",
+                """INSERT INTO users VALUES ($1, $2, $3, $4, $5, $6);""",
                 user_id,
                 name,
                 surname,
                 email,
                 is_active,
+                hashed_password,
             )
 
     return create_user_in_database

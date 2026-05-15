@@ -6,6 +6,7 @@ async def test_create_user(client, get_user_from_database):
         "name": "Nikolai",
         "surname": "Sviridov",
         "email": "lol@kek.com",
+        "password": "strong_password",
     }
     resp = client.post("/user/", json=user_data)
     data_from_resp = resp.json()
@@ -29,11 +30,13 @@ async def test_create_user_duplicate_email_error(client, get_user_from_database)
         "name": "Nikolai",
         "surname": "Sviridov",
         "email": "lol@kek.com",
+        "password": "strong_password",
     }
     user_data_same_email = {
         "name": "James",
         "surname": "Logan",
         "email": "lol@kek.com",
+        "password": "strong_password",
     }
     resp = client.post("/user/", json=user_data)
     data_from_resp = resp.json()
@@ -84,16 +87,32 @@ async def test_create_user_duplicate_email_error(client, get_user_from_database)
                         "msg": "Field required",
                         "input": {},
                     },
+                    {
+                        "type": "missing",
+                        "loc": ["body", "password"],
+                        "msg": "Field required",
+                        "input": {},
+                    },
                 ]
             },
         ),
         (
-            {"name": "Nikolai123", "surname": "Sviridov", "email": "lol@kek.com"},
+            {
+                "name": "Nikolai123",
+                "surname": "Sviridov",
+                "email": "lol@kek.com",
+                "password": "strong_password",
+            },
             422,
             {"detail": "Name should contains only letters"},
         ),
         (
-            {"name": "Nikolai", "surname": "Sviridov", "email": "lol"},
+            {
+                "name": "Nikolai",
+                "surname": "Sviridov",
+                "email": "lol",
+                "password": "strong_password",
+            },
             422,
             {
                 "detail": [
