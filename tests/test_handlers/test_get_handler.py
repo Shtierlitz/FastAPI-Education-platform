@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from db.models import PortalRole
 from tests.conftest import create_test_auth_headers_for_user
 
 
@@ -11,6 +12,7 @@ async def test_get_user(client, create_user_in_database, get_user_from_database)
         "email": "lol@kek.com",
         "is_active": True,
         "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
     }
     await create_user_in_database(**user_data)
     resp = client.get(
@@ -38,6 +40,7 @@ async def test_get_user_id_validation_error(
         "email": "lol@kek.com",
         "is_active": True,
         "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
     }
     await create_user_in_database(**user_data)
     resp = client.get(
@@ -73,6 +76,7 @@ async def test_get_user_not_found(
         "email": "lol@kek.com",
         "is_active": True,
         "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
     }
     user_id_for_finding = uuid4()
     await create_user_in_database(**user_data)
@@ -99,6 +103,7 @@ async def test_get_user_not_auth(
         "email": "lol@kek.com",
         "is_active": True,
         "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
     }
     bad_auth_headers = create_test_auth_headers_for_user(user_data["email"])
     bad_auth_headers["Authorization"] += "a"
@@ -121,6 +126,7 @@ async def test_get_user_no_jwt(
         "email": "lol@kek.com",
         "is_active": True,
         "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
     }
     user_id_for_finding = uuid4()
     await create_user_in_database(**user_data)
