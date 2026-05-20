@@ -12,11 +12,13 @@ from api.actions.user import _create_new_user
 from api.actions.user import _delete_user
 from api.actions.user import _get_user_by_id
 from api.actions.user import _update_user
+from api.actions.user import check_user_permissions
 from api.models import DeleteUserResponse
 from api.models import ShowUser
 from api.models import UpdatedUserResponse
 from api.models import UpdateUserRequest
 from api.models import UserCreate
+from db.models import User
 from db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -39,8 +41,18 @@ async def create_user(
 async def delete_user(
     user_id: UUID,
     session: AsyncSession = Depends(get_db),
-    current_user: ShowUser = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ) -> DeleteUserResponse:
+    user_for_deletion = await _get_user_by_id(user_id, session)
+    if user_for_deletion is None:
+        raise HTTPException(
+            status_code=404, detail=f"User with id {user_id} not found."
+        )
+    if not check_user_permissions(
+        target_user=user_for_deletion,
+        current_user=current_user,
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden.")
     deleted_user_id = await _delete_user(user_id, session)
     if deleted_user_id is None:
         raise HTTPException(
@@ -53,8 +65,8 @@ async def delete_user(
 async def get_user_by_id(
     user_id: UUID,
     session: AsyncSession = Depends(get_db),
-    current_user: ShowUser = Depends(get_current_user_from_token),
-) -> ShowUser:
+    current_user: User = Depends(get_current_user_from_token),
+) -> User:
     user = await _get_user_by_id(user_id, session)
     if user is None:
         raise HTTPException(
@@ -68,7 +80,7 @@ async def update_user_by_id(
     user_id: UUID,
     body: UpdateUserRequest,
     session: AsyncSession = Depends(get_db),
-    current_user: ShowUser = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user_from_token),
 ) -> UpdatedUserResponse:
     updated_user_params = body.model_dump(exclude_none=True)
     if updated_user_params == {}:
@@ -76,11 +88,16 @@ async def update_user_by_id(
             status_code=422,
             detail="At least one parameter for user update info should be provided",
         )
-    user = await _get_user_by_id(user_id, session)
-    if user is None:
+    user_for_update = await _get_user_by_id(user_id, session)
+    if user_for_update is None:
         raise HTTPException(
             status_code=404, detail=f"User with id {user_id} not found."
         )
+    if user_id != current_user.user_id:
+        if check_user_permissions(
+            target_user=user_for_update, current_user=current_user
+        ):
+            raise HTTPException(status_code=403, detail="Forbidden.")
     try:
         updated_user_id = await _update_user(
             user_id=user_id, updated_user_params=updated_user_params, session=session
