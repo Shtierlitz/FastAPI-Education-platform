@@ -10,6 +10,9 @@ start: up
 down:
 	docker $(COMPOSE) down; docker network prune --force
 
+run:
+	docker compose -f docker-compose-ci.yaml up -d
+
 stop: down
 
 restart:

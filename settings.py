@@ -12,6 +12,8 @@ def to_sync_database_url(database_url: str) -> str:
     return database_url.replace("+asyncpg", "")
 
 
+APP_PORT = env.int("APP_PORT", default=8000)
+
 ACCESS_TOKEN_EXPIRE_MINUTES = env.int("ACCESS_TOKEN_EXPIRE_MINUTES")
 SECRET_KEY = env.str("SECRET_KEY", default="secret_key")
 ALGORITHM = env.str("ALGORITHM", default="HS256")
