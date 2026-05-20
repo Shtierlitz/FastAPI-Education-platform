@@ -1,5 +1,8 @@
 from uuid import uuid4
 
+import pytest
+
+from db.models import PortalRole
 from tests.conftest import create_test_auth_headers_for_user
 
 
@@ -135,3 +138,156 @@ async def test_delete_user_no_jwt(client, create_user_in_database):
     )
     assert resp.status_code == 401
     assert resp.json() == {"detail": "Not authenticated"}
+
+
+@pytest.mark.parametrize(
+    "user_role_list",
+    [
+        [PortalRole.ROLE_PORTAL_USER, PortalRole.ROLE_PORTAL_ADMIN],
+    ],
+)
+async def test_delete_user_by_privilege_roles(
+    client, create_user_in_database, get_user_from_database, user_role_list
+):
+    user_data_for_deletion = {
+        "user_id": uuid4(),
+        "name": "Nikolai",
+        "surname": "Sviridov",
+        "email": "lol@kek.com",
+        "is_active": True,
+        "hashed_password": "SampleHashedPass",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
+    }
+    user_data = {
+        "user_id": uuid4(),
+        "name": "Admin",
+        "surname": "Adminov",
+        "email": "admin@kek.com",
+        "is_active": True,
+        "hashed_password": "SampleHashedPass",
+        "roles": user_role_list,
+    }
+    await create_user_in_database(**user_data_for_deletion)
+    await create_user_in_database(**user_data)
+    resp = client.delete(
+        f"/user/?user_id={user_data_for_deletion['user_id']}",
+        headers=create_test_auth_headers_for_user(user_data["email"]),
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"deleted_user_id": str(user_data_for_deletion["user_id"])}
+    users_from_db = await get_user_from_database(user_data_for_deletion["user_id"])
+    user_from_db = dict(users_from_db[0])
+    assert user_from_db["name"] == user_data_for_deletion["name"]
+    assert user_from_db["surname"] == user_data_for_deletion["surname"]
+    assert user_from_db["email"] == user_data_for_deletion["email"]
+    assert user_from_db["is_active"] is False
+    assert user_from_db["user_id"] == user_data_for_deletion["user_id"]
+
+
+@pytest.mark.parametrize(
+    "user_for_deletion, user_who_delete",
+    [
+        (
+            {
+                "user_id": uuid4(),
+                "name": "Nikolai",
+                "surname": "Sviridov",
+                "email": "lol@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [PortalRole.ROLE_PORTAL_USER],
+            },
+            {
+                "user_id": uuid4(),
+                "name": "Admin",
+                "surname": "Adminov",
+                "email": "admin@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [PortalRole.ROLE_PORTAL_USER],
+            },
+        ),
+        (
+            {
+                "user_id": uuid4(),
+                "name": "Nikolai",
+                "surname": "Sviridov",
+                "email": "lol@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [
+                    PortalRole.ROLE_PORTAL_USER,
+                    PortalRole.ROLE_PORTAL_SUPERADMIN,
+                ],
+            },
+            {
+                "user_id": uuid4(),
+                "name": "Admin",
+                "surname": "Adminov",
+                "email": "admin@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [PortalRole.ROLE_PORTAL_USER, PortalRole.ROLE_PORTAL_ADMIN],
+            },
+        ),
+        (
+            {
+                "user_id": uuid4(),
+                "name": "Nikolai",
+                "surname": "Sviridov",
+                "email": "lol@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [PortalRole.ROLE_PORTAL_USER, PortalRole.ROLE_PORTAL_ADMIN],
+            },
+            {
+                "user_id": uuid4(),
+                "name": "Admin",
+                "surname": "Adminov",
+                "email": "admin@kek.com",
+                "is_active": True,
+                "hashed_password": "SampleHashedPass",
+                "roles": [PortalRole.ROLE_PORTAL_USER, PortalRole.ROLE_PORTAL_ADMIN],
+            },
+        ),
+    ],
+)
+async def test_delete_another_user_error(
+    client,
+    create_user_in_database,
+    get_user_from_database,
+    user_for_deletion,
+    user_who_delete,
+):
+    await create_user_in_database(**user_for_deletion)
+    await create_user_in_database(**user_who_delete)
+    resp = client.delete(
+        f"/user/?user_id={user_for_deletion['user_id']}",
+        headers=create_test_auth_headers_for_user(user_who_delete["email"]),
+    )
+    assert resp.status_code == 403
+
+
+async def test_reject_delete_superadmin(
+    client,
+    create_user_in_database,
+    get_user_from_database,
+):
+    user_for_deletion = {
+        "user_id": uuid4(),
+        "name": "Nikolai",
+        "surname": "Sviridov",
+        "email": "lol@kek.com",
+        "is_active": True,
+        "hashed_password": "SampleHashedPass",
+        "roles": [PortalRole.ROLE_PORTAL_SUPERADMIN],
+    }
+    await create_user_in_database(**user_for_deletion)
+    resp = client.delete(
+        f"/user/?user_id={user_for_deletion['user_id']}",
+        headers=create_test_auth_headers_for_user(user_for_deletion["email"]),
+    )
+    assert resp.status_code == 406
+    assert resp.json() == {"detail": "Superadmin cannot be deleted via API."}
+    user_from_database = await get_user_from_database(user_for_deletion["user_id"])
+    assert PortalRole.ROLE_PORTAL_SUPERADMIN in dict(user_from_database[0])["roles"]
