@@ -26,6 +26,11 @@ logger = logging.getLogger(__name__)
 user_router = APIRouter()
 
 
+def _raise_email_conflict(err: IntegrityError) -> None:
+    logger.error(err)
+    raise HTTPException(status_code=409, detail="Email already exists.")
+
+
 @user_router.post("/", response_model=ShowUser)
 async def create_user(
     body: UserCreate, session: AsyncSession = Depends(get_db)
@@ -33,8 +38,7 @@ async def create_user(
     try:
         return await _create_new_user(body, session)
     except IntegrityError as err:
-        logger.error(err)
-        raise HTTPException(status_code=503, detail=f"Database error {err}")
+        _raise_email_conflict(err)
 
 
 @user_router.delete("/", response_model=DeleteUserResponse)
@@ -72,6 +76,11 @@ async def get_user_by_id(
         raise HTTPException(
             status_code=404, detail=f"User with id {user_id} not found."
         )
+    if not check_user_permissions(
+        target_user=user,
+        current_user=current_user,
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden.")
     return user
 
 
@@ -93,16 +102,15 @@ async def update_user_by_id(
         raise HTTPException(
             status_code=404, detail=f"User with id {user_id} not found."
         )
-    if user_id != current_user.user_id:
-        if check_user_permissions(
-            target_user=user_for_update, current_user=current_user
-        ):
-            raise HTTPException(status_code=403, detail="Forbidden.")
+    if not check_user_permissions(
+        target_user=user_for_update,
+        current_user=current_user,
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden.")
     try:
         updated_user_id = await _update_user(
             user_id=user_id, updated_user_params=updated_user_params, session=session
         )
     except IntegrityError as err:
-        logger.error(err)
-        raise HTTPException(status_code=503, detail=f"Database error {err}")
+        _raise_email_conflict(err)
     return UpdatedUserResponse(updated_user_id=updated_user_id)

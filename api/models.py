@@ -26,7 +26,7 @@ class UserCreate(BaseModel):
     name: str
     surname: str
     email: EmailStr
-    password: str
+    password: constr(min_length=8)
 
     @field_validator("name")
     def validate_name(cls, value):

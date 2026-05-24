@@ -26,6 +26,8 @@ async def authenticate_user(email: str, password: str, db: AsyncSession) -> None
     user = await _get_user_by_email_for_athh(email=email, db=db)
     if user is None:
         return None
+    if not user.is_active:
+        return None
     if not Hasher.verify_password(password, user.hashed_password):
         return None
     return user
@@ -47,13 +49,12 @@ async def get_current_user_from_token(
             algorithms=[settings.ALGORITHM],
         )
         username: str = payload.get("sub")
-        print("username/email extracted is ", username)
 
         if username is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
     user = await _get_user_by_email_for_athh(email=username, db=db)
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
     return user

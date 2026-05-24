@@ -2,13 +2,16 @@ COMPOSE_FILE := docker-compose-local.yaml
 COMPOSE := docker compose -f $(COMPOSE_FILE)
 
 up:
-	docker $(COMPOSE) up -d
+	$(COMPOSE) up -d
 
 start: up
 
 
 down:
-	docker $(COMPOSE) down; docker network prune --force
+	$(COMPOSE) down; docker network prune --force
+
+run:
+	docker compose -f docker-compose-ci.yaml up -d
 
 stop: down
 
