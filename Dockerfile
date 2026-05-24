@@ -18,4 +18,4 @@ RUN python3 -m pip install --user --upgrade pip && \
 EXPOSE 8000
 
 # Execute
-CMD ["python", "main.py"]
+CMD ["sh", "-c", "alembic upgrade head && python main.py"]

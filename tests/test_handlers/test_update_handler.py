@@ -95,7 +95,7 @@ async def test_update_user_check_one_is_updated(
     resp = client.patch(
         f"/user/?user_id={user_data_1['user_id']}",
         json=user_data_updated,
-        headers=create_test_auth_headers_for_user(user_data["email"]),
+        headers=create_test_auth_headers_for_user(user_data_1["email"]),
     )
     assert resp.status_code == 200
     resp_data = resp.json()
@@ -124,6 +124,94 @@ async def test_update_user_check_one_is_updated(
     assert user_from_db["email"] == user_data_3["email"]
     assert user_from_db["is_active"] == user_data_3["is_active"]
     assert user_from_db["user_id"] == user_data_3["user_id"]
+
+
+async def test_update_another_user_forbidden(
+    client, create_user_in_database, get_user_from_database
+):
+    target_user_data = {
+        "user_id": uuid4(),
+        "name": "Nikolai",
+        "surname": "Sviridov",
+        "email": "nikolai@example.com",
+        "is_active": True,
+        "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
+    }
+    current_user_data = {
+        "user_id": uuid4(),
+        "name": "Jane",
+        "surname": "Smith",
+        "email": "janes@example.com",
+        "is_active": True,
+        "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
+    }
+    update_data = {
+        "name": "James",
+        "surname": "Logan",
+        "email": "cheburek@kek.com",
+    }
+    await create_user_in_database(**target_user_data)
+    await create_user_in_database(**current_user_data)
+
+    resp = client.patch(
+        f"/user/?user_id={target_user_data['user_id']}",
+        json=update_data,
+        headers=create_test_auth_headers_for_user(current_user_data["email"]),
+    )
+
+    assert resp.status_code == 403
+    assert resp.json() == {"detail": "Forbidden."}
+    users_from_db = await get_user_from_database(target_user_data["user_id"])
+    user_from_db = dict(users_from_db[0])
+    assert user_from_db["name"] == target_user_data["name"]
+    assert user_from_db["surname"] == target_user_data["surname"]
+    assert user_from_db["email"] == target_user_data["email"]
+
+
+async def test_update_another_user_by_admin(
+    client, create_user_in_database, get_user_from_database
+):
+    target_user_data = {
+        "user_id": uuid4(),
+        "name": "Nikolai",
+        "surname": "Sviridov",
+        "email": "nikolai@example.com",
+        "is_active": True,
+        "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER],
+    }
+    admin_user_data = {
+        "user_id": uuid4(),
+        "name": "Admin",
+        "surname": "Adminov",
+        "email": "admin@example.com",
+        "is_active": True,
+        "hashed_password": "hashed_password",
+        "roles": [PortalRole.ROLE_PORTAL_USER, PortalRole.ROLE_PORTAL_ADMIN],
+    }
+    update_data = {
+        "name": "James",
+        "surname": "Logan",
+        "email": "cheburek@kek.com",
+    }
+    await create_user_in_database(**target_user_data)
+    await create_user_in_database(**admin_user_data)
+
+    resp = client.patch(
+        f"/user/?user_id={target_user_data['user_id']}",
+        json=update_data,
+        headers=create_test_auth_headers_for_user(admin_user_data["email"]),
+    )
+
+    assert resp.status_code == 200
+    assert resp.json() == {"updated_user_id": str(target_user_data["user_id"])}
+    users_from_db = await get_user_from_database(target_user_data["user_id"])
+    user_from_db = dict(users_from_db[0])
+    assert user_from_db["name"] == update_data["name"]
+    assert user_from_db["surname"] == update_data["surname"]
+    assert user_from_db["email"] == update_data["email"]
 
 
 async def test_update_user(client, create_user_in_database, get_user_from_database):
@@ -367,14 +455,10 @@ async def test_update_user_duplication_email_error(
     resp = client.patch(
         f"/user/?user_id={user_data_1['user_id']}",
         json=user_data_updated,
-        headers=create_test_auth_headers_for_user(user_data["email"]),
+        headers=create_test_auth_headers_for_user(user_data_1["email"]),
     )
-    assert resp.status_code == 503
-    data_from_response = resp.json()
-    assert (
-        'duplicate key value violates unique constraint "users_email_key"'
-        in data_from_response["detail"]
-    )
+    assert resp.status_code == 409
+    assert resp.json() == {"detail": "Email already exists."}
 
 
 async def test_update_user_not_auth(

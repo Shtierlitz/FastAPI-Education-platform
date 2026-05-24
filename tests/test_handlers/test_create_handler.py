@@ -54,11 +54,8 @@ async def test_create_user_duplicate_email_error(client, get_user_from_database)
     assert user_from_db["is_active"] is True
     assert str(user_from_db["user_id"]) == data_from_resp["user_id"]
     resp = client.post("/user/", json=user_data_same_email)
-    assert resp.status_code == 503
-    assert (
-        'duplicate key value violates unique constraint "users_email_key"'
-        in resp.json()["detail"]
-    )
+    assert resp.status_code == 409
+    assert resp.json() == {"detail": "Email already exists."}
 
 
 @pytest.mark.parametrize(
@@ -122,6 +119,26 @@ async def test_create_user_duplicate_email_error(client, get_user_from_database)
                         "msg": "value is not a valid email address: An email address must have an @-sign.",
                         "input": "lol",
                         "ctx": {"reason": "An email address must have an @-sign."},
+                    }
+                ]
+            },
+        ),
+        (
+            {
+                "name": "Nikolai",
+                "surname": "Sviridov",
+                "email": "lol@kek.com",
+                "password": "short",
+            },
+            422,
+            {
+                "detail": [
+                    {
+                        "type": "string_too_short",
+                        "loc": ["body", "password"],
+                        "msg": "String should have at least 8 characters",
+                        "input": "short",
+                        "ctx": {"min_length": 8},
                     }
                 ]
             },

@@ -1,3 +1,4 @@
+import os
 from datetime import timedelta
 from typing import Any
 from typing import Generator
@@ -10,6 +11,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 from starlette.testclient import TestClient
+
+os.environ.setdefault("SECRET_KEY", "test-secret")
 
 import settings
 from db.models import Base
@@ -58,19 +61,21 @@ async def clean_tables(async_session_test):
 
 
 async def _get_test_db():
+    test_engine = create_async_engine(
+        settings.TEST_DATABASE_URL,
+        future=True,
+        echo=True,
+        poolclass=NullPool,
+    )
+    test_async_session = sessionmaker(
+        test_engine, expire_on_commit=False, class_=AsyncSession
+    )
+    session: AsyncSession = test_async_session()
     try:
-        test_engine = create_async_engine(
-            settings.TEST_DATABASE_URL,
-            future=True,
-            echo=True,
-        )
-
-        test_async_session = sessionmaker(
-            test_engine, expire_on_commit=False, class_=AsyncSession
-        )
-        yield test_async_session()
+        yield session
     finally:
-        pass
+        await session.close()
+        await test_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")
