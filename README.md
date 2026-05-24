@@ -141,6 +141,17 @@ pytest -q
 
 Tests expect a reachable PostgreSQL test database configured by `TEST_DATABASE_URL` or `.env`.
 
+## Continuous Integration
+
+GitHub Actions runs CI on pushes to `main`/`master` and on pull requests.
+
+The workflow is defined in `.github/workflows/ci.yml` and checks:
+
+- dependency installation from `requirements.txt`
+- formatting and linting with `pre-commit run --all-files`
+- the full test suite with `pytest -q`
+- PostgreSQL-backed tests using a `postgres:14.1-alpine` service container
+
 ## Main Endpoints
 
 | Method | Path | Auth | Description |
